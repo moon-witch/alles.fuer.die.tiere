@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { eq } from 'drizzle-orm';
+import { validPublicUrl } from '$lib/domain/action-policy';
 import { createId } from '$lib/domain/ids';
 import { getDatabase } from '$lib/server/db/client';
 import { activityEvents, claimEvidence, claims, operations } from '$lib/server/db/schema';
@@ -27,20 +28,28 @@ const requestHash = (value: unknown) => createHash('sha256').update(JSON.stringi
  * modify a public project page directly.
  */
 export const createClaimDraft = async (input: ClaimDraftInput): Promise<ClaimDraftResult> => {
-	if (!input.statement.trim() || !input.passage.trim()) throw new Error('A claim draft requires a statement and exact evidence.');
+	if (!input.statement.trim() || !input.passage.trim()) throw new Error('Ein Faktenentwurf braucht eine Aussage und eine genaue Belegstelle.');
+	if (input.statement.length > 1000 || input.passage.length > 4000) throw new Error('Aussage oder Belegstelle ist zu lang.');
+	if (!validPublicUrl(input.sourceUrl)) throw new Error('Eine öffentliche HTTPS-Quelle ist erforderlich.');
+	if (!['milestone', 'status', 'outcome', 'context'].includes(input.kind)) throw new Error('Die Faktenart ist nicht zulässig.');
+	if (!Number.isFinite(input.observedAt.getTime()) || (input.occursAt && !Number.isFinite(input.occursAt.getTime()))) throw new Error('Das Datum ist ungültig.');
+	if (!input.idempotencyKey || input.idempotencyKey.length > 128) throw new Error('Ungültige Anfragekennung.');
+	const comparableInput = { projectId: input.projectId, statement: input.statement.trim(), kind: input.kind, occursAt: input.occursAt?.toISOString() ?? null, sourceUrl: input.sourceUrl, passage: input.passage.trim(), initiatingUserId: input.initiatingUserId, instruction: input.instruction ?? null };
+	const hash = requestHash(comparableInput);
 	const database = getDatabase();
 	return database.transaction(async (tx) => {
-		const existing = await tx.select({ id: operations.id, entityDiff: operations.entityDiff }).from(operations).where(eq(operations.idempotencyKey, input.idempotencyKey)).limit(1);
-		if (existing[0]) {
-			const claimId = (existing[0].entityDiff as { claimId?: string } | null)?.claimId;
-			if (!claimId) throw new Error('The existing operation has no claim result.');
-			return { operationId: existing[0].id, claimId, reused: true };
-		}
 		const operationId = createId();
 		const claimId = createId();
 		const correlationId = createId();
-		const operationInput = { ...input, occursAt: input.occursAt?.toISOString(), observedAt: input.observedAt.toISOString() };
-		await tx.insert(operations).values({ id: operationId, status: 'proposed', type: 'claim.draft', origin: 'admin', initiatingUserId: input.initiatingUserId, instruction: input.instruction, idempotencyKey: input.idempotencyKey, requestHash: requestHash(operationInput), input: operationInput, correlationId });
+		const operationInput = { ...comparableInput, observedAt: input.observedAt.toISOString() };
+		const inserted = await tx.insert(operations).values({ id: operationId, status: 'proposed', type: 'claim.draft', origin: 'admin', initiatingUserId: input.initiatingUserId, instruction: input.instruction, idempotencyKey: input.idempotencyKey, requestHash: hash, input: operationInput, correlationId }).onConflictDoNothing().returning({ id: operations.id });
+		if (!inserted.length) {
+			const [existing] = await tx.select({ id: operations.id, entityDiff: operations.entityDiff, requestHash: operations.requestHash, status: operations.status }).from(operations).where(eq(operations.idempotencyKey, input.idempotencyKey)).limit(1);
+			if (!existing || existing.requestHash !== hash || existing.status !== 'applied') throw new Error('Diese Anfragekennung wurde bereits anders verwendet.');
+			const claimId = (existing.entityDiff as { claimId?: string } | null)?.claimId;
+			if (!claimId) throw new Error('The existing operation has no claim result.');
+			return { operationId: existing.id, claimId, reused: true };
+		}
 		await tx.insert(activityEvents).values({ id: createId(), operationId, eventType: 'operation.proposed', origin: 'admin', severity: 'info', summary: 'Quellenbasierter Faktenentwurf wurde vorbereitet.', correlationId, payload: { claimId } });
 		await tx.insert(claims).values({ id: claimId, projectId: input.projectId, kind: input.kind, statement: input.statement.trim(), occurredAt: input.occursAt, visibility: 'private', editorialStatus: 'draft' });
 		await tx.insert(claimEvidence).values({ id: createId(), claimId, sourceUrl: input.sourceUrl, passage: input.passage.trim(), observedAt: input.observedAt });

@@ -1,6 +1,8 @@
 import { fail } from '@sveltejs/kit';
 import { runContentChat } from '$lib/server/chat/agent';
 
+export const load = ({ locals }) => ({ isSteward: locals.user?.role === 'steward' });
+
 export const actions = {
 	default: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, { error: 'Nicht angemeldet.' });

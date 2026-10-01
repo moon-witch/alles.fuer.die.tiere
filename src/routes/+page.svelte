@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { launchState } from '$lib/content/seed';
+	let { data } = $props();
 </script>
 
 <svelte:head><title>Alles für die Tiere</title></svelte:head>
@@ -14,21 +14,24 @@
 		</div>
 		<aside class="action" aria-labelledby="action-title">
 			<p class="eyebrow">Jetzt helfen</p>
-			<h2 id="action-title">{launchState.currentAction.label}</h2>
-			<p>{launchState.currentAction.message}</p>
-			<p class="status">Status: {launchState.currentAction.status}</p>
+			<h2 id="action-title">{data.action?.label ?? 'Aktuelle Hilfe wird vorbereitet'}</h2>
+			<p>{data.action ? `Für ${data.action.recipientName}. Ziel: ${data.action.destinationHost}` : 'Sobald eine Aktion mit Quelle, Empfänger und Ziel geprüft ist, steht sie hier.'}</p>
+			<p class="status">{data.action ? 'Veröffentlichte Aktion' : 'Noch kein externer Aufruf'}</p>
 		</aside>
 	</div>
 </section>
 
 <section class="container story">
-	<p class="eyebrow">Im Aufbau</p>
-	<h2>Eine Geschichte mit Herkunft.</h2>
-	<div class="story__grid">
-		<p>{launchState.project.intro}</p>
-		<div class="source"><strong>Geplante Quelle</strong><br /><a href={launchState.project.source.url} rel="external noreferrer">{launchState.project.source.publisher}</a><br />Beobachtet am {launchState.project.source.observedAt}</div>
-	</div>
-	<a href={`/projekte/${launchState.project.slug}`}>Projektentwurf ansehen</a>
+	<p class="eyebrow">Projekte</p>
+	{#if data.featuredProject}
+		<h2>{data.featuredProject.name}</h2>
+		<p class="lede">{data.featuredProject.claims[0]?.statement}</p>
+		<a href={`/projekte/${data.featuredProject.slug}`}>Belegte Geschichte ansehen</a>
+	{:else}
+		<h2>Eine Geschichte mit Herkunft.</h2>
+		<p>Die ersten belegten Projektgeschichten werden gerade vorbereitet.</p>
+		<a href="/projekte">Projekte ansehen</a>
+	{/if}
 </section>
 
 <style>
@@ -40,7 +43,5 @@
 	.status { margin-bottom: 0; color: var(--color-muted); font-size: .9rem; }
 	.story { padding-top: clamp(4rem, 9vw, 8rem); }
 	.story h2 { max-width: 34rem; }
-	.story__grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, .6fr); gap: 3rem; max-width: 60rem; font-size: 1.1rem; }
-	.source { padding: 1rem; border-left: 3px solid var(--color-moss); background: var(--color-surface); font-size: .95rem; }
-	@media (max-width: 45rem) { .intro__grid, .story__grid { grid-template-columns: 1fr; } }
+	@media (max-width: 45rem) { .intro__grid { grid-template-columns: 1fr; } }
 </style>

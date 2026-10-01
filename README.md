@@ -36,6 +36,12 @@ npm run admin:bootstrap
 
 The bootstrap command is deliberately one-time: it refuses to overwrite an existing account.
 
+The steward can prepare and publish the current `/jetzt` action at `/admin/aktuelle-hilfe`. The preview shows the recipient, entered destination, source, expiry, and fallback before confirmation. Publish an indefinite action first; a later action with an expiry must select an existing published indefinite fallback. Check the source and any destination redirects manually before confirming. The site does not read or alter Malte's Instagram bio automatically.
+
+At `/admin/inhalte`, the steward can create a private project and a source-backed claim draft. The claim preview shows the exact supporting passage before publication. A confirmed claim creates an immutable project-page revision and Activity events; public project pages read only that published revision. Until a project has a published claim, its private draft does not appear on the public site.
+
+The steward can inspect recent Activity at `/admin/verlauf`, including the operation and publication revision behind a public change. While the temporary reveal gate is enabled, `robots.txt` disallows indexing and the sitemap exposes no project routes.
+
 ## Verification
 
 ```sh

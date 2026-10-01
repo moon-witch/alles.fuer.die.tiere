@@ -1,3 +1,5 @@
+import { isIP } from 'node:net';
+
 export type ActionInput = {
 	destinationUrl: string;
 	recipientName: string;
@@ -8,10 +10,19 @@ export type ActionInput = {
 
 const isUnsafeHost = (host: string) => {
 	const normalized = host.toLowerCase();
-	if (normalized === 'localhost' || normalized === '::1' || normalized.endsWith('.local')) return true;
+	if (isIP(normalized.replace(/^\[|\]$/g, ''))) return true;
+	if (normalized === 'localhost' || normalized.endsWith('.localhost') || normalized.endsWith('.local') || normalized.endsWith('.internal')) return true;
 	if (/^127\./.test(normalized) || /^10\./.test(normalized) || /^192\.168\./.test(normalized) || /^0\./.test(normalized)) return true;
 	const match = normalized.match(/^172\.(\d{1,3})\./);
 	return Boolean(match && Number(match[1]) >= 16 && Number(match[1]) <= 31);
+};
+
+export const validPublicUrl = (raw: string): URL | undefined => {
+	try {
+		const url = new URL(raw);
+		if (url.protocol !== 'https:' || url.username || url.password || url.port || isUnsafeHost(url.hostname) || !url.hostname.includes('.')) return undefined;
+		return url;
+	} catch { return undefined; }
 };
 
 export const validateAction = (input: ActionInput): string[] => {
@@ -20,7 +31,7 @@ export const validateAction = (input: ActionInput): string[] => {
 	try {
 		const destination = new URL(input.destinationUrl);
 		if (destination.protocol !== 'https:') issues.push('Das Ziel muss HTTPS verwenden.');
-		if (destination.username || destination.password || isUnsafeHost(destination.hostname)) issues.push('Das Ziel ist nicht zulässig.');
+		if (!validPublicUrl(input.destinationUrl)) issues.push('Das Ziel ist nicht zulässig.');
 	} catch {
 		issues.push('Das Ziel ist keine gültige URL.');
 	}

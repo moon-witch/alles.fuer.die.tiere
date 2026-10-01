@@ -12,6 +12,8 @@
     "test": "vitest run",
     "test:db": "tsx scripts/integration-claim-draft.ts",
     "test:auth-db": "tsx scripts/integration-password-login.ts",
+    "test:action-db": "tsx scripts/integration-current-action.ts",
+    "test:project-db": "tsx scripts/integration-project-publication.ts",
     "admin:bootstrap": "tsx scripts/bootstrap-admin.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

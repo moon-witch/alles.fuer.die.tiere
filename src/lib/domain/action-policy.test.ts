@@ -14,6 +14,8 @@ describe('validateAction', () => {
 
 	it('rejects insecure and private targets', () => {
 		expect(validateAction({ ...valid, destinationUrl: 'http://127.0.0.1/private' })).toEqual(expect.arrayContaining(['Das Ziel muss HTTPS verwenden.', 'Das Ziel ist nicht zulässig.']));
+		expect(validateAction({ ...valid, destinationUrl: 'https://[::1]/private' })).toContain('Das Ziel ist nicht zulässig.');
+		expect(validateAction({ ...valid, destinationUrl: 'https://localhost/private' })).toContain('Das Ziel ist nicht zulässig.');
 	});
 
 	it('rejects an expiry before the start', () => {

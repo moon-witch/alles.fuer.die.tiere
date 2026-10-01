@@ -37,11 +37,15 @@ export const revealPasswordMatches = (candidate: string) => {
 
 export const handle: Handle = async ({ event, resolve }) => {
 	if (event.url.pathname.startsWith('/admin')) {
-		if (event.url.pathname === '/admin/login') return resolve(event);
-		const user = await getSessionUser(event.cookies.get(adminSessionCookie));
-		if (!user) throw redirect(303, '/admin/login');
-		event.locals.user = user;
-		return resolve(event);
+		if (event.url.pathname !== '/admin/login') {
+			const user = await getSessionUser(event.cookies.get(adminSessionCookie));
+			if (!user) throw redirect(303, '/admin/login');
+			event.locals.user = user;
+		}
+		const response = await resolve(event);
+		response.headers.set('cache-control', 'no-store');
+		response.headers.set('x-robots-tag', 'noindex, nofollow');
+		return response;
 	}
 	if (!isGateEnabled() || excludedPaths.has(event.url.pathname)) return resolve(event);
 	if (verifyRevealCookie(event.cookies.get(cookieName))) return resolve(event);
