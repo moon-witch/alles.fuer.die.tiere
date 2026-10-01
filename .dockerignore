@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+.git
+.idea
+.svelte-kit
+build
+node_modules
+coverage
+playwright-report
+test-results
+plans

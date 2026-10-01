@@ -1,0 +1,18 @@
+:root {
+	--color-paper: #f7f3ec;
+	--color-surface: #fffdf9;
+	--color-ink: #1b1b18;
+	--color-muted: #655f57;
+	--color-line: #d8d1c6;
+	--color-moss: #315b47;
+	--color-sky: #b8d7e6;
+	--color-clay: #c95343;
+	--color-sun: #e7bb48;
+	--color-night: #20252b;
+	--font-display: Georgia, 'Times New Roman', serif;
+	--font-body: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	--content-width: 72rem;
+	--reading-width: 46rem;
+	--radius: 0.5rem;
+	--shadow: 0 0.25rem 0.8rem rgb(27 27 24 / 7%);
+}
