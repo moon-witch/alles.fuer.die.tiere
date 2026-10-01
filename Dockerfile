@@ -14,6 +14,8 @@ ENV HOST=0.0.0.0
 ENV PORT=3000
 
 WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 RUN groupadd --system app && useradd --system --gid app --create-home app
 COPY --from=build --chown=app:app /app/package.json ./
 COPY --from=build --chown=app:app /app/node_modules ./node_modules
