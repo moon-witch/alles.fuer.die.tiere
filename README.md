@@ -28,7 +28,7 @@ The local database is stored in Docker tmpfs and is removed when its container s
 
 The chat uses the OpenAI Responses API only on the server. It has no tool that can publish content: its first mutation can only create an evidence-backed private claim draft.
 
-Before the first login, configure `TOTP_ENCRYPTION_KEY` (a base64-encoded 32-byte key), `ADMIN_BOOTSTRAP_EMAIL`, `ADMIN_BOOTSTRAP_PASSWORD`, and `ADMIN_BOOTSTRAP_TOTP_SECRET` in the deployment environment. The TOTP secret is the base32 secret you add to Joshua’s authenticator application. Then run:
+Before the first login, configure `ADMIN_BOOTSTRAP_EMAIL` and `ADMIN_BOOTSTRAP_PASSWORD` in the deployment environment. Then run:
 
 ```sh
 npm run admin:bootstrap

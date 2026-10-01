@@ -11,6 +11,7 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run",
     "test:db": "tsx scripts/integration-claim-draft.ts",
+    "test:auth-db": "tsx scripts/integration-password-login.ts",
     "admin:bootstrap": "tsx scripts/bootstrap-admin.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
@@ -35,7 +36,6 @@
     "argon2": "^0.45.1",
     "drizzle-orm": "^0.45.3",
     "openai": "^7.25.0",
-    "otpauth": "^9.5.2",
     "postgres": "^3.4.9"
   }
 }

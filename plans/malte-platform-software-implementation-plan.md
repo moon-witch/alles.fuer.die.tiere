@@ -136,7 +136,7 @@ Before the reveal, a single application-wide gate appears before every public ro
 - Use short-lived presigned upload URLs and a post-upload verification job, so the web process never proxies large media files. Generate bounded image derivatives (`avif`/`webp` plus original where needed), explicit dimensions, alt text, credit, caption, and a safe sensitive-media reveal component.
 - Track only same-site outbound handoffs: action ID, route, anonymous daily salted visitor token, and timestamp. No third-party analytics script or cross-site identifier.
 
-Admin routes live under `/admin`, use SSR, and have `noindex`, `Cache-Control: no-store`, CSRF validation, secure HTTP-only session cookies, session rotation, and rate-limited login. Start with Joshua’s steward account and Malte’s full-content chat account, using Argon2id password hashes and mandatory TOTP. Malte lands in chat, not the steward console. There is no reviewer or two-person approval workflow. This avoids making email delivery a launch dependency. Account recovery is a documented administrator procedure until a transactional email provider is explicitly chosen.
+Admin routes live under `/admin`, use SSR, and have `noindex`, `Cache-Control: no-store`, CSRF validation, secure HTTP-only session cookies, session rotation, and rate-limited login. Start with Joshua’s steward account and Malte’s full-content chat account, using Argon2id password hashes. Malte lands in chat, not the steward console. There is no reviewer or two-person approval workflow. This avoids making email delivery a launch dependency. Account recovery is a documented administrator procedure until a transactional email provider is explicitly chosen.
 
 The steward console navigation is **Übersicht**, **Inhalte**, **Aktuelle Hilfe**, **Termine**, **Quellen**, and **Verlauf**. Übersicht groups public-impact work into Heute wichtig, Zur Prüfung, Pflege fällig, and Alles aktuell. The first pages include content templates for project updates, actions, events, media, and press facts; source health/detail; content health; publication preview; and safe revert preview. Content health groups entries by owner and shows overdue editorial reviews, stale values, unknown-rights media, broken action links, and orphaned assets. Drafts autosave privately, while publication always requires an explicit preview/submit action. Malte sees the chat-first interface defined in the chat plan. Build desktop-first for the steward and use clear German labels; retain audit and technical terms behind a Details control rather than exposing them as the primary UI.
 
@@ -179,7 +179,7 @@ Emit JSON logs to stdout with correlation ID, request ID, route/job name, durati
 
 | Phase | Deliverable | Acceptance evidence |
 | --- | --- | --- |
-| 0 — Foundation | repository, Coolify stack, Traefik routing, DB migrations, accounts/TOTP, deploy/backup scripts | fresh-server runbook works; HTTPS and health checks pass; test restore succeeds |
+| 0 — Foundation | repository, Coolify stack, Traefik routing, DB migrations, password accounts, deploy/backup scripts | fresh-server runbook works; HTTPS and health checks pass; test restore succeeds |
 | 1 — Auditable content core | projects, animals, dated timeline claims, actions, events, sources, evidence, operation/activity ledger, seed importer | a seeded public fact traces from page to evidence and operation; its project timeline derives from the published claim |
 | 2 — Reveal-ready public-site core | all V1 public routes, `/jetzt`, responsive design, accessibility/SEO/legal routes, handoff events, and temporary password screen | keyboard/mobile checks; invalid or expired action resolves safely; production content is complete behind the temporary screen |
 | 3 — Maintainer control | Joshua dashboard, source health, attention workflow, diffs, preview and compensating revert | Joshua changes an eligible action and safely reverts it from the UI |
@@ -194,7 +194,7 @@ Work vertically. Finish a small seeded project, its evidence, one public page, o
 - Unit tests: policy functions, visibility checks, URL validation, freshness calculation, operation inverse generation, and redaction.
 - Database integration tests: transaction rollback, duplicate-submission protection, append-only activity permissions, and job leasing.
 - Adapter fixture tests: unchanged, changed, malformed, `304`, `403`, `429`, and extractor version change.
-- Playwright end-to-end tests: `/jetzt` fallback, source citation, admin TOTP session, approval/publish, Activity causal trace, and revert conflict.
+- Playwright end-to-end tests: `/jetzt` fallback, source citation, admin password session, approval/publish, Activity causal trace, and revert conflict.
 - Accessibility checks: automated axe scans plus manual keyboard, focus, screen-reader labels, and sensitive reveal interaction.
 - Maintainer usability checks: Malte completes a sourced update, `/jetzt` replacement, direct text replacement, project archive, and mistake recovery on a phone through chat; Joshua completes source diagnosis and recovery through the private dashboard.
 - Deployment checks: migration against a production-like dump, container health, backup upload, and restore verification.

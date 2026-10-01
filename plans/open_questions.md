@@ -25,3 +25,5 @@
 12. **Recovery scope:** Multi-server backups are a future addition, not a V1 requirement. V1 uses encrypted backups in SeaweedFS and verified local restore drills.
 
 13. **Retention:** Keep source-run metadata and activity for the life of the platform; raw public-source bodies for 24 months; rejected draft payloads for 90 days; no private uploads in V1; and encrypted database backups for 30 daily, 12 monthly, and 2 yearly restore points. SeaweedFS lifecycle rules perform and log deletion.
+
+14. **Admin login:** Joshua and Malte sign in with passwords only. An authenticator app and TOTP secret are not required.

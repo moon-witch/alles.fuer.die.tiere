@@ -1,4 +1,4 @@
-import { index, jsonb, pgEnum, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
+import { index, integer, jsonb, pgEnum, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
 
 const id = (name = 'id') => uuid(name).primaryKey();
 const createdAt = timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
@@ -9,12 +9,18 @@ export const editorialStatus = pgEnum('editorial_status', ['draft', 'ready', 'pu
 export const operationStatus = pgEnum('operation_status', ['proposed', 'applied', 'failed', 'reverted']);
 
 export const users = pgTable('users', {
-	id: id(), email: varchar('email', { length: 320 }).notNull(), displayName: text('display_name').notNull(), role: varchar('role', { length: 32 }).notNull(), passwordHash: text('password_hash').notNull(), totpSecret: text('totp_secret'), createdAt, updatedAt
+	id: id(), email: varchar('email', { length: 320 }).notNull(), displayName: text('display_name').notNull(), role: varchar('role', { length: 32 }).notNull(), passwordHash: text('password_hash').notNull(), createdAt, updatedAt
 }, (table) => [uniqueIndex('users_email_unique').on(table.email)]);
 
 export const sessions = pgTable('sessions', {
 	id: id(), userId: uuid('user_id').notNull().references(() => users.id), tokenHash: varchar('token_hash', { length: 64 }).notNull(), expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(), createdAt
 }, (table) => [uniqueIndex('sessions_token_hash_unique').on(table.tokenHash), index('sessions_user_expiry_index').on(table.userId, table.expiresAt)]);
+
+export const loginAttempts = pgTable('login_attempts', {
+	emailHash: varchar('email_hash', { length: 64 }).primaryKey(),
+	attempts: integer('attempts').notNull(),
+	windowEndsAt: timestamp('window_ends_at', { withTimezone: true }).notNull()
+});
 
 export const projects = pgTable('projects', {
 	id: id(), slug: varchar('slug', { length: 120 }).notNull(), name: text('name').notNull(), summary: text('summary').notNull(), status: varchar('status', { length: 40 }).notNull(), visibility: visibility('visibility').notNull().default('private'), locale: varchar('locale', { length: 8 }).notNull().default('de'), currentNeed: text('current_need'), startedAt: timestamp('started_at', { withTimezone: true }), contentOwnerId: uuid('content_owner_id').references(() => users.id), lastEditorialReviewedAt: timestamp('last_editorial_reviewed_at', { withTimezone: true }), nextReviewDueAt: timestamp('next_review_due_at', { withTimezone: true }), freshnessClass: varchar('freshness_class', { length: 16 }).notNull().default('historic'), lifecycleState: varchar('lifecycle_state', { length: 32 }).notNull().default('active'), revision: varchar('revision', { length: 32 }).notNull().default('1'), createdAt, updatedAt

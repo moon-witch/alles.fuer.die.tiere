@@ -10,20 +10,21 @@ Create one **Dockerfile** application resource from this repository.
 
 - Root directory: repository root
 - Dockerfile: `Dockerfile`
-- Exposed port: `3000`
+- Ports Exposes: `3000`
+- Domains: `https://allesfuerdietiere.earth:3000,https://www.allesfuerdietiere.earth:3000` (`:3000` selects the internal container port; visitors use normal HTTPS)
 - Health check path: `/healthz`
 - Health check expected response: HTTP 200
 - Restart policy: `unless-stopped`
 - Memory limit: 384 MiB
 - Automatic deployment: disabled until a reviewed deployment workflow is agreed
 
-Attach only `allesfuerdietiere.earth` and `www.allesfuerdietiere.earth` after DNS points to the server. Configure Coolify's canonical-domain redirect from `www` to the apex. The application-wide reveal gate stays enabled until Joshua removes it through `REVEAL_GATE_ENABLED=false`.
+Attach only `allesfuerdietiere.earth` and `www.allesfuerdietiere.earth` after DNS points to the server. Configure Coolify's canonical-domain redirect from `www` to the apex. Save the domain settings and redeploy so the proxy picks up the routes. The application-wide reveal gate stays enabled until Joshua removes it through `REVEAL_GATE_ENABLED=false`.
 
 Do not expose PostgreSQL, SeaweedFS, or future worker/MCP ports publicly. The web service is the only application resource with a public domain.
 
 ## Internal operations resource
 
-Create a second, private Coolify application from the same repository using `Dockerfile.ops`. It has no domain and no public port. Give it the database-related environment variables and start it only when an operational command is needed. The smaller web image deliberately excludes migrations and bootstrap tooling.
+Create a second, private Coolify application from the same repository using `Dockerfile.ops`. It has no domain, public port, or HTTP health check. Give it the database-related environment variables and start it only when an operational command is needed. Its container stays running so Coolify's terminal can execute migration and bootstrap commands; stop it afterward. The smaller web image deliberately excludes migrations and bootstrap tooling.
 
 ## Required application environment
 
@@ -32,19 +33,21 @@ Set these as Coolify secrets, never in the repository:
 | Variable | Value |
 | --- | --- |
 | `NODE_ENV` | `production` |
-| `DATABASE_URL` | internal PostgreSQL URL for the `app_write` role |
+| `DATABASE_URL` | PostgreSQL resource's Internal URL, copied in full from Coolify |
 | `PUBLIC_SITE_URL` | `https://allesfuerdietiere.earth` |
 | `SESSION_SECRET` | random, base64-encoded 32-byte secret |
 | `REVEAL_GATE_ENABLED` | `true` |
 | `REVEAL_GATE_PASSWORD` | password-manager generated reveal password |
 | `OPENAI_API_KEY` | OpenAI project key |
 | `OPENAI_MODEL` | `gpt-5.4-mini` unless deliberately changed |
-| `TOTP_ENCRYPTION_KEY` | random, base64-encoded 32-byte secret |
 | `ADMIN_BOOTSTRAP_EMAIL` | Joshua's private email address |
 | `ADMIN_BOOTSTRAP_PASSWORD` | password-manager generated admin password |
-| `ADMIN_BOOTSTRAP_TOTP_SECRET` | base32 secret enrolled in Joshua's authenticator app |
 
-Generate `SESSION_SECRET` and `TOTP_ENCRYPTION_KEY` separately with `openssl rand -base64 32`.
+Generate `SESSION_SECRET` with `openssl rand -base64 32`.
+
+To save the database connection, open the web application in Coolify, then **Configuration → Environment Variables → Add**. Set the key to `DATABASE_URL` and paste the PostgreSQL resource's complete **Internal URL** as its value. Mark it as a secret and **Runtime Variable**, and disable **Build Variable**. Save, then deploy or restart the web application. Add the same `DATABASE_URL` to the private operations resource for migrations and account bootstrap. Coolify supplies it to the container; it does not belong in a Dockerfile or Git commit. If the password contains reserved URL characters (for example `@`, `:`, `/`, or `#`), percent-encode those characters in the URL's password component.
+
+The Internal URL works for resources on the same Coolify destination network. It usually does not resolve on a laptop, so a local `.env` may need a different development URL. The default `postgres` account can perform the first migration and bootstrap; create a narrower application role before the public release.
 
 ## SeaweedFS environment reserved for the next implementation slice
 
@@ -65,16 +68,16 @@ Buckets remain private. Only the application may stream approved assets; Seaweed
 
 ## PostgreSQL roles
 
-Use separate credentials: `migration_owner` for migrations, `app_write` for the web application, `worker_write` for the future worker, and `app_read` for read-only public rendering. The current web application needs only `app_write`. Retain the `postgres` administrative account only for database administration and role provisioning.
+The initial Coolify Internal URL normally uses the `postgres` account. It can run the first migration and bootstrap. Before the public release, provision separate credentials: `migration_owner` for migrations, `app_write` for the web application, `worker_write` for the future worker, and `app_read` for read-only public rendering. Retain the `postgres` account for database administration and role provisioning.
 
 ## First deployment
 
-1. Configure the database, web environment, internal PostgreSQL hostname, and domain.
-2. Deploy the web application. A healthy deployment returns HTTP 200 from `/healthz`.
-3. In the internal operations resource terminal, run `npm run db:migrate` once using `migration_owner` credentials.
-4. Change `DATABASE_URL` in that operations resource to the `app_write` role, then run `npm run admin:bootstrap` once. It creates the steward account and encrypts its TOTP secret.
-5. Confirm `/` opens the reveal-password screen, `/healthz` returns `{"status":"ok"}`, and `/admin/login` accepts the newly created TOTP account.
+1. Configure the database, web environment, internal PostgreSQL hostname, and domain. Deploy the current password-only web image; a healthy deployment returns HTTP 200 from `/healthz` even before migrations.
+2. Deploy the operations resource from the same commit, using `Dockerfile.ops`, with the PostgreSQL Internal URL as its secret runtime `DATABASE_URL`. Set `ADMIN_BOOTSTRAP_EMAIL` and `ADMIN_BOOTSTRAP_PASSWORD` there as secret runtime variables too. It needs no public domain or health check.
+3. In that resource's Terminal, run `npm run db:migrate`. This applies only migrations not yet recorded in PostgreSQL. The current release includes `0000` through `0003`; `0003` removes the old `totp_secret` column. If the database already holds users or other data, take a database backup before running it.
+4. In the same Terminal, run `npm run admin:bootstrap` once. It creates the password-protected steward account and refuses to overwrite an existing one.
+5. Confirm `/` opens the reveal-password screen, `/healthz` returns `{"status":"ok"}`, and `/admin/login` accepts the new account. Remove the bootstrap email and password from the operations resource, then stop that resource.
 
 ## Failure and recovery
 
-If the health check fails, use the Coolify deployment logs, verify the internal `DATABASE_URL`, and roll back to the previous image. Do not disable the reveal gate to diagnose a deployment. The database must be restored only from a tested encrypted backup procedure.
+If the health check fails, inspect the Coolify deployment logs. Coolify's HTTP health check runs inside the container and needs `curl` or `wget`; the web Dockerfile installs `curl` in its final image. A `curl: not found` or `wget: not found` error points to an older image or an incorrect Dockerfile path. If the HTTP request itself fails, check the application logs and `/healthz` response, then verify the internal `DATABASE_URL` if the application needs it to start. Roll back to the previous image if needed. Do not disable the reveal gate to diagnose a deployment. The database must be restored only from a tested encrypted backup procedure.
