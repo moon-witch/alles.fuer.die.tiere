@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { parseProjectPublication, type ProjectPublication } from '$lib/domain/project-publication';
 import { createId } from '$lib/domain/ids';
 import { getDatabase } from '$lib/server/db/client';
-import { activityEvents, attentionItems, claims, operations, projects, publicationRevisions, publications } from '$lib/server/db/schema';
+import { activityEvents, attentionItems, claims, jobs, operations, projects, publicationRevisions, publications } from '$lib/server/db/schema';
 
 type ClaimDiff = { route?: string; before?: string | null; revisionId?: string };
 const readDiff = (value: unknown): { route: string; before: string | null; revisionId: string } | null => {
@@ -88,6 +88,7 @@ export const revertClaimPublication = async (input: { targetOperationId: string;
 		await tx.update(operations).set({ status: 'reverted', inverseOperationId: operationId, updatedAt: now }).where(eq(operations.id, target.id));
 		await tx.insert(activityEvents).values({ id: createId(), operationId, eventType: 'operation.applied', origin: 'admin', severity: 'info', summary: 'Der veröffentlichte Fakt wurde rückgängig gemacht.', publicEffect: diff.route, correlationId, payload: { targetOperationId: target.id, claimId, revisionId } });
 		await tx.insert(activityEvents).values({ id: createId(), operationId, publicationRevisionId: revisionId, eventType: revisionId ? 'publication.published' : 'publication.unpublished', origin: 'admin', severity: 'info', summary: revisionId ? 'Vorherige Projektseite wurde erneut veröffentlicht.' : 'Projektseite wurde entfernt.', publicEffect: diff.route, correlationId, payload: { targetOperationId: target.id, claimId, revisionId, route: diff.route } });
+		if (revisionId && process.env.PUBLICATION_VERIFY_JOBS_ENABLED === 'true') await tx.insert(jobs).values({ id: createId(), kind: 'publication.verify', dedupeKey: `publication.verify:${revisionId}`, payload: { revisionId, route: diff.route, correlationId }, runAt: now, maxAttempts: '3' });
 		return { operationId, status: 'applied' as const, reused: false };
 	});
 };

@@ -26,6 +26,12 @@ Do not expose PostgreSQL, SeaweedFS, or future worker/MCP ports publicly. The we
 
 Create a second, private Coolify application from the same repository using `Dockerfile.ops`. It has no domain, public port, or HTTP health check. Give it the database-related environment variables and start it only when an operational command is needed. Its container stays running so Coolify's terminal can execute migration and bootstrap commands; stop it afterward. The smaller web image deliberately excludes migrations and bootstrap tooling.
 
+## Publication verification worker
+
+Create a separate private Coolify application from the same reviewed commit using `Dockerfile.worker`. It has no domain, public port, or HTTP health check. Give it the same internal `DATABASE_URL` as the web application, connect it to the database's destination network, set restart policy `unless-stopped`, and limit memory to 384 MiB. The worker handles one PostgreSQL job at a time, starts on container startup, and polls once per minute while idle. Its current handler validates stored publication revisions through the same data readers used by public routes; it does not make an HTTP rendering request, fetch sources, or modify published content.
+
+Apply migration `0004` with `npm run db:migrate` from the private operations resource before starting the worker. Once the worker runs reliably, set `PUBLICATION_VERIFY_JOBS_ENABLED=true` **on the web application** and redeploy the web application. New project and current-action publications, including restored revisions from reverts, then enqueue a verification job in the same database transaction. Keep this flag false until the worker is running; an absent worker otherwise leaves jobs pending. A terminal failure creates one private Needs Attention item. Do not run more than one worker replica on the launch server.
+
 ## Required application environment
 
 Set these as Coolify secrets, never in the repository:

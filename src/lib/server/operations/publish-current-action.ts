@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { validateAction, validPublicUrl } from '$lib/domain/action-policy';
-import type { CurrentActionPublication, PublicAction } from '$lib/domain/current-action';
+import { parseCurrentActionPublication, type CurrentActionPublication, type PublicAction } from '$lib/domain/current-action';
 import { createId } from '$lib/domain/ids';
 import { getDatabase } from '$lib/server/db/client';
-import { actions, activityEvents, campaignPriorities, operations, publicationRevisions, publications } from '$lib/server/db/schema';
+import { actions, activityEvents, campaignPriorities, jobs, operations, publicationRevisions, publications } from '$lib/server/db/schema';
 
 export const actionKinds = ['spende', 'petition', 'ticket', 'information', 'merchandise'] as const;
 export type ActionKind = (typeof actionKinds)[number];
@@ -67,11 +67,13 @@ export const publishCurrentAction = async (input: PublishCurrentActionInput): Pr
 		await tx.insert(campaignPriorities).values({ id: createId(), actionId, rank: '1', startsAt: now, endsAt: input.endsAt, fallbackActionId: input.fallbackActionId, approvedRevision: '1' });
 		const revisionId = createId();
 		const payload: CurrentActionPublication = { type: 'current-action', version: 1, primary, fallback, startsAt: now.toISOString(), endsAt: normalized.endsAt, publishedAt: now.toISOString() };
+		if (!parseCurrentActionPublication(payload)) throw new Error('Die aktuelle Hilfe konnte nicht sicher gerendert werden.');
 		await tx.insert(publicationRevisions).values({ id: revisionId, publicationId: publication.id, operationId, payload, templateVersion: 'current-action-v1', publishedAt: now });
 		await tx.update(publications).set({ currentRevisionId: revisionId, status: 'published', updatedAt: now }).where(eq(publications.id, publication.id));
 		await tx.update(operations).set({ status: 'applied', entityDiff: { actionId, revisionId, fallbackActionId: input.fallbackActionId ?? null }, publicationDiff: { route: '/jetzt', before: publication.currentRevisionId, after: revisionId }, updatedAt: now }).where(eq(operations.id, operationId));
 		await tx.insert(activityEvents).values({ id: createId(), operationId, eventType: 'operation.applied', origin: 'admin', severity: 'info', summary: 'Aktuelle Hilfe wurde als neue Revision gespeichert.', publicEffect: '/jetzt wurde aktualisiert.', correlationId, payload: { actionId, revisionId } });
 		await tx.insert(activityEvents).values({ id: createId(), operationId, publicationRevisionId: revisionId, eventType: 'publication.published', origin: 'admin', severity: 'info', summary: 'Aktuelle Hilfe wurde veröffentlicht.', publicEffect: '/jetzt zeigt eine neue Aktion.', correlationId, payload: { actionId, route: '/jetzt', revisionId } });
+		if (process.env.PUBLICATION_VERIFY_JOBS_ENABLED === 'true') await tx.insert(jobs).values({ id: createId(), kind: 'publication.verify', dedupeKey: `publication.verify:${revisionId}`, payload: { revisionId, route: '/jetzt', correlationId }, runAt: now, maxAttempts: '3' });
 		return { operationId, actionId, revisionId, reused: false };
 	});
 };

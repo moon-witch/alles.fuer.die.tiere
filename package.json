@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "build:worker": "esbuild worker/index.ts --bundle --platform=node --format=esm --packages=external --tsconfig=tsconfig.json --outfile=dist/worker.mjs",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run",
@@ -27,6 +28,7 @@
     "@sveltejs/vite-plugin-svelte": "^6.2.1",
     "@types/node": "^26.6.3",
     "drizzle-kit": "^0.31.11",
+    "esbuild": "0.28.2",
     "prettier": "^3.6.2",
     "prettier-plugin-svelte": "^3.4.0",
     "svelte": "^5.39.6",

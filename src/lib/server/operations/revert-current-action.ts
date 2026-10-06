@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import { parseCurrentActionPublication, resolveCurrentAction, type CurrentActionPublication } from '$lib/domain/current-action';
 import { createId } from '$lib/domain/ids';
 import { getDatabase } from '$lib/server/db/client';
-import { actions, activityEvents, attentionItems, operations, publicationRevisions, publications } from '$lib/server/db/schema';
+import { actions, activityEvents, attentionItems, jobs, operations, publicationRevisions, publications } from '$lib/server/db/schema';
 
 type ActionDiff = { before?: string | null; after?: string };
 
@@ -87,6 +87,7 @@ export const revertCurrentAction = async (input: { targetOperationId: string; ex
 		await tx.update(operations).set({ status: 'reverted', inverseOperationId: operationId, updatedAt: now }).where(eq(operations.id, target.id));
 		await tx.insert(activityEvents).values({ id: createId(), operationId, eventType: 'operation.applied', origin: 'admin', severity: 'info', summary: 'Die Änderung der aktuellen Hilfe wurde rückgängig gemacht.', publicEffect: '/jetzt wurde wiederhergestellt.', correlationId, payload: { targetOperationId: target.id, revisionId } });
 		await tx.insert(activityEvents).values({ id: createId(), operationId, publicationRevisionId: revisionId, eventType: revisionId ? 'publication.published' : 'publication.unpublished', origin: 'admin', severity: 'info', summary: revisionId ? 'Vorherige aktuelle Hilfe wurde erneut veröffentlicht.' : 'Aktuelle Hilfe wurde entfernt.', publicEffect: revisionId ? '/jetzt zeigt die vorherige Aktion.' : '/jetzt zeigt keine Aktion.', correlationId, payload: { targetOperationId: target.id, revisionId, route: '/jetzt' } });
+		if (revisionId && process.env.PUBLICATION_VERIFY_JOBS_ENABLED === 'true') await tx.insert(jobs).values({ id: createId(), kind: 'publication.verify', dedupeKey: `publication.verify:${revisionId}`, payload: { revisionId, route: '/jetzt', correlationId }, runAt: now, maxAttempts: '3' });
 		return { operationId, status: 'applied' as const, reused: false };
 	});
 };

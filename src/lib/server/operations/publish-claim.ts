@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { validPublicUrl } from '$lib/domain/action-policy';
-import type { ProjectPublication, PublishedClaim } from '$lib/domain/project-publication';
+import { parseProjectPublication, type ProjectPublication, type PublishedClaim } from '$lib/domain/project-publication';
 import { createId } from '$lib/domain/ids';
 import { getDatabase } from '$lib/server/db/client';
-import { activityEvents, claimEvidence, claims, operations, projects, publicationRevisions, publications } from '$lib/server/db/schema';
+import { activityEvents, claimEvidence, claims, jobs, operations, projects, publicationRevisions, publications } from '$lib/server/db/schema';
 
 export const publishClaim = async (input: { claimId: string; expectedClaimRevision: string; expectedPublicationRevisionId: string | null; initiatingUserId: string; idempotencyKey: string }) => {
 	if (!input.idempotencyKey || input.idempotencyKey.length > 128) throw new Error('Ungültige Anfragekennung.');
@@ -44,12 +44,14 @@ export const publishClaim = async (input: { claimId: string; expectedClaimRevisi
 		}
 		const entries = [...byClaim.values()].sort((a, b) => (a.occurredAt ?? a.evidence[0].observedAt).localeCompare(b.occurredAt ?? b.evidence[0].observedAt));
 		const payload: ProjectPublication = { type: 'project', version: 1, slug: project.slug, name: project.name, claims: entries, publishedAt: now.toISOString() };
+		if (!parseProjectPublication(payload)) throw new Error('Die Projektseite konnte nicht sicher gerendert werden.');
 		const revisionId = createId();
 		await tx.insert(publicationRevisions).values({ id: revisionId, publicationId: publication.id, operationId, payload, templateVersion: 'project-v1', renderedDiff: { addedClaimId: claim.id, beforeCount: entries.length - 1, afterCount: entries.length }, publishedAt: now });
 		await tx.update(publications).set({ currentRevisionId: revisionId, status: 'published', updatedAt: now }).where(eq(publications.id, publication.id));
 		await tx.update(operations).set({ status: 'applied', entityDiff: { claimId: claim.id, before: 'private/draft', after: 'public/published' }, publicationDiff: { route, before: publication.currentRevisionId, revisionId }, updatedAt: now }).where(eq(operations.id, operationId));
 		await tx.insert(activityEvents).values({ id: createId(), operationId, eventType: 'operation.applied', origin: 'admin', severity: 'info', summary: 'Fakt und Projektseite wurden veröffentlicht.', publicEffect: route, correlationId, payload: { claimId: claim.id, revisionId } });
 		await tx.insert(activityEvents).values({ id: createId(), operationId, publicationRevisionId: revisionId, eventType: 'publication.published', origin: 'admin', severity: 'info', summary: 'Projektseite erhielt eine neue Revision.', publicEffect: route, correlationId, payload: { claimId: claim.id, revisionId, route } });
+		if (process.env.PUBLICATION_VERIFY_JOBS_ENABLED === 'true') await tx.insert(jobs).values({ id: createId(), kind: 'publication.verify', dedupeKey: `publication.verify:${revisionId}`, payload: { revisionId, route, correlationId }, runAt: now, maxAttempts: '3' });
 		return { operationId, revisionId, route, reused: false };
 	});
 };
