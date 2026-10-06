@@ -4,6 +4,17 @@ import { recordFailedJob, recordOutstandingFailedJobs } from '$lib/server/operat
 import { sourceObservationFromJob } from './source-observation';
 import { observeSource } from '$lib/server/operations/observe-source';
 
+export class WorkerTickFailure extends Error {
+	constructor(readonly stage: string, cause: unknown) {
+		super('worker_tick_failed', { cause });
+	}
+}
+
+const atStage = async <T>(stage: string, work: () => Promise<T>): Promise<T> => {
+	try { return await work(); }
+	catch (cause) { throw new WorkerTickFailure(stage, cause); }
+};
+
 const runWithTimeout = async <T>(work: Promise<T>, timeoutMs: number): Promise<T> => {
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	try {
@@ -24,19 +35,19 @@ const execute = async (job: Job, observe: typeof observeSource) => {
 
 /** One job at a time; no public request waits on this process. */
 export const processNextJob = async (workerId: string, observe: typeof observeSource = observeSource): Promise<{ jobId: string; kind: string; correlationId?: string; status: string; errorCode?: string } | null> => {
-	await failExhaustedLeases();
-	await recordOutstandingFailedJobs();
-	const job = await claimNextJob(workerId, 120);
+	await atStage('expire_leases', failExhaustedLeases);
+	await atStage('record_failures', recordOutstandingFailedJobs);
+	const job = await atStage('claim_job', () => claimNextJob(workerId, 120));
 	if (!job) return null;
 	const correlationId = job.payload && typeof job.payload === 'object' && 'correlationId' in job.payload && typeof job.payload.correlationId === 'string' ? job.payload.correlationId : undefined;
 	try {
 		const outcome = await execute(job, observe);
-		const completed = await completeJob(job.id, workerId);
+		const completed = await atStage('complete_job', () => completeJob(job.id, workerId));
 		return { jobId: job.id, kind: job.kind, correlationId, status: completed ? outcome : 'lease_lost' };
 	} catch (cause) {
 		const code = cause instanceof Error && cause.message === 'unknown_job_kind' ? 'unknown_job_kind' : errorCode(cause, job.kind);
-		const status = await failJob(job.id, workerId, code);
-		if (status === 'failed') await recordFailedJob({ jobId: job.id, errorCode: code });
+		const status = await atStage('fail_job', () => failJob(job.id, workerId, code));
+		if (status === 'failed') await atStage('record_failure', () => recordFailedJob({ jobId: job.id, errorCode: code }));
 		return { jobId: job.id, kind: job.kind, correlationId, status, errorCode: code };
 	}
 };
