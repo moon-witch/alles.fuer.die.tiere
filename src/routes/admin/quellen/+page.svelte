@@ -39,9 +39,16 @@
 			</form>
 		</section>
 	{:else}<p>Lege unter <a href="/admin/inhalte">Inhalte</a> zuerst ein Projekt an.</p>{/if}
+	<section class="panel" aria-labelledby="registry-title">
+		<h2 id="registry-title">Quellenübersicht</h2>
+		{#if data.registry.length}<ul>{#each data.registry as source}<li>
+			<strong><a href={`/admin/quellen/${source.id}`}>{source.name}</a></strong> · {source.health === 'healthy' ? 'erreichbar' : source.health === 'paused' ? 'pausiert' : source.health === 'error' ? 'Fehler' : 'noch nicht geprüft'}
+			<br /><span>{source.owner} · zuletzt erfolgreich: {source.lastSuccessfulAt ? formatDate(source.lastSuccessfulAt) : 'noch nie'}</span>
+		</li>{/each}</ul>{:else}<p>Noch keine Quellen erfasst.</p>{/if}
+	</section>
 	<section class="panel" aria-labelledby="recent-title">
 		<h2 id="recent-title">Letzte Erfassungen</h2>
-		{#if data.recent.length}<ul>{#each data.recent as run}<li><strong>{run.name}</strong> · {run.outcome} {run.statusCode ? `(HTTP ${run.statusCode})` : ''} · <time datetime={new Date(run.fetchedAt).toISOString()}>{formatDate(run.fetchedAt)}</time><br /><a href={run.url} rel="external noreferrer">{run.url}</a></li>{/each}</ul>{:else}<p>Noch keine Quellen erfasst.</p>{/if}
+		{#if data.recent.length}<ul>{#each data.recent as run}<li><strong><a href={`/admin/quellen/${run.sourceId}`}>{run.name}</a></strong> · {run.outcome} {run.statusCode ? `(HTTP ${run.statusCode})` : ''} · <time datetime={new Date(run.fetchedAt).toISOString()}>{formatDate(run.fetchedAt)}</time><br /><a href={run.url} rel="external noreferrer">{run.url}</a></li>{/each}</ul>{:else}<p>Noch keine Quellen erfasst.</p>{/if}
 	</section>
 	<p><a href="/admin/chat">Zurück zum Inhaltschat</a></p>
 </main>

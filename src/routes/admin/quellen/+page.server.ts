@@ -4,6 +4,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { getDatabase } from '$lib/server/db/client';
 import { projects, sourceRuns, sources } from '$lib/server/db/schema';
 import { checkRawSnapshotBucket, rawSnapshotStorageConfigured } from '$lib/server/ingestion/raw-snapshots';
+import { listSourceRegistry } from '$lib/server/ingestion/source-review';
 import { observeSource, type SourceObservationInput } from '$lib/server/operations/observe-source';
 
 const field = (data: FormData, key: string) => String(data.get(key) ?? '').trim();
@@ -11,11 +12,12 @@ const field = (data: FormData, key: string) => String(data.get(key) ?? '').trim(
 export const load = async ({ locals }) => {
 	if (locals.user?.role !== 'steward') error(403, 'Nur für die technische Verwaltung.');
 	const database = getDatabase();
-	const [projectRows, recent] = await Promise.all([
+	const [projectRows, recent, registry] = await Promise.all([
 		database.select({ id: projects.id, name: projects.name }).from(projects).where(eq(projects.lifecycleState, 'active')).orderBy(projects.name),
-		database.select({ name: sources.name, url: sources.canonicalUrl, outcome: sourceRuns.outcome, statusCode: sourceRuns.statusCode, fetchedAt: sourceRuns.fetchedAt }).from(sourceRuns).innerJoin(sources, eq(sourceRuns.sourceId, sources.id)).orderBy(desc(sourceRuns.fetchedAt)).limit(20)
+		database.select({ sourceId: sources.id, name: sources.name, url: sources.canonicalUrl, outcome: sourceRuns.outcome, statusCode: sourceRuns.statusCode, fetchedAt: sourceRuns.fetchedAt }).from(sourceRuns).innerJoin(sources, eq(sourceRuns.sourceId, sources.id)).orderBy(desc(sourceRuns.fetchedAt)).limit(20),
+		listSourceRegistry()
 	]);
-	return { projects: projectRows, recent, storageReady: rawSnapshotStorageConfigured(), observationKey: randomUUID() };
+	return { projects: projectRows, recent, registry, storageReady: rawSnapshotStorageConfigured(), observationKey: randomUUID() };
 };
 
 export const actions = {

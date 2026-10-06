@@ -6,6 +6,7 @@ import { getDatabase } from '../src/lib/server/db/client';
 import { activityEvents, attentionItems, claimEvidence, claims, operations, sourceRuns, sourceSnapshots, sources, users } from '../src/lib/server/db/schema';
 import { createProjectDraft } from '../src/lib/server/operations/create-project-draft';
 import { observeSource } from '../src/lib/server/operations/observe-source';
+import { getSourceReview, listSourceRegistry } from '../src/lib/server/ingestion/source-review';
 import { publishClaim } from '../src/lib/server/operations/publish-claim';
 import { getPublishedProject } from '../src/lib/server/public/projects';
 
@@ -39,6 +40,14 @@ assert.equal((snapshot.normalizedExtract as { verification: string }).verificati
 const [run] = await database.select().from(sourceRuns).where(eq(sourceRuns.id, snapshot.sourceRunId));
 assert.equal(run.etag, '"source-v1"');
 assert.equal(run.extractorVersion, 'manual-v1');
+const [reviewSource] = await database.select().from(sources).where(eq(sources.id, run.sourceId));
+const review = await getSourceReview(reviewSource.id);
+assert.equal(review?.source.health, 'healthy');
+assert.equal(review?.runs[0].id, run.id);
+assert.equal(review?.snapshots[0].bodySha256, snapshot.bodySha256);
+assert.equal(review?.evidence[0].claimId, observed.claimId);
+assert.equal(review?.evidence[0].passage, input.passage);
+assert.ok((await listSourceRegistry()).some((item) => item.id === reviewSource.id));
 assert.equal((await database.select().from(attentionItems).where(eq(attentionItems.operationId, observed.operationId)))[0].status, 'open');
 assert.equal(await getPublishedProject(slug), null, 'observation remains private');
 
@@ -51,6 +60,10 @@ await assert.rejects(observeSource(failed, { ...dependencies, capture: async () 
 const [failedSource] = await database.select().from(sources).where(eq(sources.canonicalUrl, failed.url));
 assert.equal(failedSource.health, 'paused');
 assert.equal((await database.select().from(sourceRuns).where(eq(sourceRuns.sourceId, failedSource.id)))[0].outcome, 'failed');
+const failedReview = await getSourceReview(failedSource.id);
+assert.equal(failedReview?.runs.length, 1);
+assert.equal(failedReview?.snapshots.length, 0);
+assert.equal(failedReview?.evidence.length, 0, 'a source detail must not show another source\'s evidence');
 
-console.log('Source snapshot provenance, private draft, idempotency, publication link, and failure attention verified.');
+console.log('Source snapshot provenance, private draft, source review, idempotency, publication link, and failure attention verified.');
 process.exit(0);

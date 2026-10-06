@@ -15,6 +15,7 @@ Der Web-Ressource in Coolify sind `S3_ENDPOINT`, `S3_BUCKET_RAW=raw`, `S3_ACCESS
 3. Die offizielle HTTPS-Adresse, Herausgeber, genaue Belegstelle, vorgeschlagene Aussage sowie Rechte- und Sensibilitätshinweis eintragen. Social-Posts nur als Link in einem redaktionellen Entwurf behandeln; diese Box archiviert sie nicht.
 4. **Quelle privat sichern und Entwurf anlegen** wählen. Bei Erfolg öffnet sich der private Faktenentwurf mit der Belegstelle. Dort Wortlaut und Originalquelle prüfen; erst dann separat veröffentlichen.
 5. Unter `/admin/verlauf` den `source.observed`-Eintrag bei Bedarf aufrufen. Er enthält Quelllauf, Snapshothash und Vorgangs-ID.
+6. Unter `/admin/quellen` die Quelle öffnen. Die Detailseite zeigt Zustand, letzte Läufe, private Snapshot-Extrakte und verknüpfte Faktenentwürfe. Der Originalkörper bleibt ausschließlich im privaten S3-Bucket; die Detailseite liefert dafür keine Download-URL aus.
 
 **Erfolg:** Der Quelllauf ist `success`, ein privater Snapshot und ein privater Fakt sind verknüpft, und `/projekte` bleibt bis zur ausdrücklichen Veröffentlichung unverändert.
 
