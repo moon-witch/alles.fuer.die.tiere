@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-The public site starts with a clearly marked non-public fixture. It deliberately contains no live action destination or factual launch claim.
+The public project list and `/jetzt` show safe empty states until sourced content and a current action have been published.
 
 To use the temporary reveal screen locally, set `REVEAL_GATE_ENABLED=true`, `REVEAL_GATE_PASSWORD`, and `SESSION_SECRET` in `.env`. Keep the gate disabled for normal local development.
 
@@ -40,7 +40,7 @@ The steward can prepare and publish the current `/jetzt` action at `/admin/aktue
 
 At `/admin/inhalte`, the steward can create a private project and a source-backed claim draft. The claim preview shows the exact supporting passage before publication. A confirmed claim creates an immutable project-page revision and Activity events; public project pages read only that published revision. Until a project has a published claim, its private draft does not appear on the public site.
 
-The steward can inspect recent Activity at `/admin/verlauf`, including the operation and publication revision behind a public change. While the temporary reveal gate is enabled, `robots.txt` disallows indexing and the sitemap exposes no project routes.
+The steward can inspect recent Activity at `/admin/verlauf`, including the operation and publication revision behind a public change. An eligible current-action change or published project claim can be reversed from its Activity detail page after reviewing the preview. A newer publication blocks the reversal and creates an attention item in `/admin/aufgaben`; a successful reversal creates a new operation and leaves the earlier records intact. Marking an attention item resolved requires a short note and never changes the public site. While the temporary reveal gate is enabled, `robots.txt` disallows indexing and the sitemap exposes no project routes.
 
 ## Verification
 
