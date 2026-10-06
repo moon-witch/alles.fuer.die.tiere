@@ -49,9 +49,9 @@ To save the database connection, open the web application in Coolify, then **Con
 
 The Internal URL works for resources on the same Coolify destination network. It usually does not resolve on a laptop, so a local `.env` may need a different development URL. The default `postgres` account can perform the first migration and bootstrap; create a narrower application role before the public release.
 
-## SeaweedFS environment reserved for the next implementation slice
+## SeaweedFS environment
 
-Configure these now if the bucket names are known. The application will begin using them when source snapshots and assets are wired in.
+The source inbox now uses the `raw` bucket for private snapshots. The other buckets are reserved for later assets and backups. Variable names only identify buckets; they do not create them.
 
 | Variable | Value |
 | --- | --- |

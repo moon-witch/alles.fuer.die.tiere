@@ -3,7 +3,7 @@ import { desc, eq } from 'drizzle-orm';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { getDatabase } from '$lib/server/db/client';
 import { projects, sourceRuns, sources } from '$lib/server/db/schema';
-import { rawSnapshotStorageConfigured } from '$lib/server/ingestion/raw-snapshots';
+import { checkRawSnapshotBucket, rawSnapshotStorageConfigured } from '$lib/server/ingestion/raw-snapshots';
 import { observeSource, type SourceObservationInput } from '$lib/server/operations/observe-source';
 
 const field = (data: FormData, key: string) => String(data.get(key) ?? '').trim();
@@ -19,6 +19,11 @@ export const load = async ({ locals }) => {
 };
 
 export const actions = {
+	checkStorage: async ({ locals }) => {
+		if (locals.user?.role !== 'steward') error(403, 'Nur für die technische Verwaltung.');
+		if (!rawSnapshotStorageConfigured()) return fail(400, { error: 'S3-Endpunkt, raw-Bucket oder Zugangsdaten fehlen in der Web-Ressource.' });
+		return { storageCheck: await checkRawSnapshotBucket() };
+	},
 	observe: async ({ request, locals }) => {
 		if (locals.user?.role !== 'steward') error(403, 'Nur für die technische Verwaltung.');
 		const data = await request.formData();

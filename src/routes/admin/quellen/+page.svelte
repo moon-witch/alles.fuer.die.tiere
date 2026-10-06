@@ -11,6 +11,11 @@
 	<p>Erfasse eine öffentliche Quelle und ihre genaue Belegstelle. Die Originalantwort wird privat gesichert; daraus entsteht nur ein privater Faktenentwurf. Prüfe Aussage, Rechte und mögliche sensible Angaben selbst vor der Veröffentlichung.</p>
 	{#if !data.storageReady}<p class="warning" role="status">Die private S3-Speicherung ist noch nicht konfiguriert. Für neue Quellensnapshots werden S3-Endpunkt, Bucket und Zugangsdaten benötigt.</p>{/if}
 	{#if form?.error}<p class="error" role="alert">{form.error}</p>{/if}
+	{#if form?.storageCheck === 'ready'}<p class="success" role="status">Der Bucket „raw“ ist erreichbar. Der Test hat keine Datei geschrieben.</p>{/if}
+	{#if form?.storageCheck === 'missing'}<p class="error" role="alert">Der Bucket „raw“ wurde nicht gefunden. Lege ihn in SeaweedFS an.</p>{/if}
+	{#if form?.storageCheck === 'forbidden'}<p class="error" role="alert">Der S3-Zugriff wurde verweigert. Prüfe Gateway-Zugangsdaten und Bucket-Rechte; der Bucket könnte trotzdem existieren.</p>{/if}
+	{#if form?.storageCheck === 'unavailable'}<p class="error" role="alert">Die S3-Verbindung konnte nicht geprüft werden. Prüfe Endpunkt und SeaweedFS-Status.</p>{/if}
+	<form method="POST" action="?/checkStorage"><button class="button" type="submit" disabled={!data.storageReady}>Raw-Bucket prüfen</button></form>
 	{#if data.projects.length}
 		<section class="panel" aria-labelledby="new-title">
 			<h2 id="new-title">Neuer Quellenbeleg</h2>
@@ -49,5 +54,6 @@
 	.fields input, .fields select, .fields textarea { width: 100%; padding: .65rem; border: 1px solid var(--color-ink); border-radius: .25rem; background: white; }
 	.fields button { justify-self: start; }
 	.warning, .error { padding: 1rem; background: var(--color-surface); border-left: .3rem solid var(--color-clay); }
+	.success { padding: 1rem; background: var(--color-surface); border-left: .3rem solid var(--color-moss); }
 	li { margin: .7rem 0; overflow-wrap: anywhere; }
 </style>
