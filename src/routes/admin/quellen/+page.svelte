@@ -14,6 +14,8 @@
 	{#if form?.storageCheck === 'ready'}<p class="success" role="status">Der Bucket „raw“ ist erreichbar. Der Test hat keine Datei geschrieben.</p>{/if}
 	{#if form?.storageCheck === 'missing'}<p class="error" role="alert">Der Bucket „raw“ wurde nicht gefunden. Lege ihn in SeaweedFS an.</p>{/if}
 	{#if form?.storageCheck === 'forbidden'}<p class="error" role="alert">Der S3-Zugriff wurde verweigert. Prüfe Gateway-Zugangsdaten und Bucket-Rechte; der Bucket könnte trotzdem existieren.</p>{/if}
+	{#if form?.storageCheck === 'connection_refused'}<p class="error" role="alert">Der S3-Hostname ist erreichbar, aber Port 8333 weist die Verbindung ab. Prüfe, ob das Gateway läuft und auf der gemeinsamen Docker-Netzwerkadresse lauscht.</p>{/if}
+	{#if form?.storageCheck === 'name_not_found'}<p class="error" role="alert">Der interne S3-Hostname konnte nicht aufgelöst werden. Prüfe den Endpunkt und das gemeinsame Coolify-Netzwerk.</p>{/if}
 	{#if form?.storageCheck === 'unavailable'}<p class="error" role="alert">Die S3-Verbindung konnte nicht geprüft werden. Prüfe Endpunkt und SeaweedFS-Status.</p>{/if}
 	<form method="POST" action="?/checkStorage"><button class="button" type="submit" disabled={!data.storageReady}>Raw-Bucket prüfen</button></form>
 	{#if data.projects.length}

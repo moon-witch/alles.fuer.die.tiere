@@ -24,7 +24,18 @@ const storage = () => {
 
 export const rawSnapshotStorageConfigured = () => Boolean(process.env.S3_ENDPOINT && (process.env.S3_BUCKET_RAW || process.env.S3_BUCKET) && (process.env.S3_ACCESS_KEY_ID || process.env.S3_ACCESS_KEY) && (process.env.S3_SECRET_ACCESS_KEY || process.env.S3_SECRET_KEY));
 
-export const checkRawSnapshotBucket = async (): Promise<'ready' | 'missing' | 'forbidden' | 'unavailable'> => {
+export type RawBucketCheck = 'ready' | 'missing' | 'forbidden' | 'connection_refused' | 'name_not_found' | 'unavailable';
+
+const networkErrorCode = (cause: unknown): unknown => {
+	let current = cause;
+	for (let depth = 0; depth < 3 && current && typeof current === 'object'; depth++) {
+		if ('code' in current && typeof current.code === 'string') return current.code;
+		current = 'cause' in current ? current.cause : undefined;
+	}
+	return undefined;
+};
+
+export const checkRawSnapshotBucket = async (): Promise<RawBucketCheck> => {
 	const { client, bucket } = storage();
 	try {
 		await client.send(new HeadBucketCommand({ Bucket: bucket }));
@@ -33,6 +44,9 @@ export const checkRawSnapshotBucket = async (): Promise<'ready' | 'missing' | 'f
 		const status = cause && typeof cause === 'object' && '$metadata' in cause ? (cause as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode : undefined;
 		if (status === 404) return 'missing';
 		if (status === 403) return 'forbidden';
+		const code = networkErrorCode(cause);
+		if (code === 'ECONNREFUSED') return 'connection_refused';
+		if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') return 'name_not_found';
 		return 'unavailable';
 	}
 };

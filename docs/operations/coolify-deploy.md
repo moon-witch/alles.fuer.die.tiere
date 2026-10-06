@@ -53,6 +53,8 @@ The Internal URL works for resources on the same Coolify destination network. It
 
 The source inbox now uses the `raw` bucket for private snapshots. The other buckets are reserved for later assets and backups. Variable names only identify buckets; they do not create them.
 
+For Coolify's SeaweedFS service, the S3 gateway runs in the `seaweedfs-master` container on port `8333`; the admin UI and master UI are different endpoints. The web application and SeaweedFS service must share a Docker network. Enable **Connect To Predefined Network** on the SeaweedFS service and redeploy it, then use `http://<seaweedfs-master-container-name>:8333` as the web application's `S3_ENDPOINT`. Do not use `localhost`, a public proxy URL, or the filer/admin port. If the hostname resolves but connections are refused after joining the second network, add `-s3.ip.bind=0.0.0.0` to the service's `weed server` command and redeploy SeaweedFS; this makes the gateway listen on both container interfaces. The read-only check at `/admin/quellen` confirms bucket access but does not test object upload permissions.
+
 | Variable | Value |
 | --- | --- |
 | `S3_ENDPOINT` | internal SeaweedFS S3 endpoint, including `http://` and port |
