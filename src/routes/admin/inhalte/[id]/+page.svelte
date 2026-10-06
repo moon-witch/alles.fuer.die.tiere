@@ -12,6 +12,9 @@
 		{#each data.evidence as evidence}
 			<p><a href={evidence.sourceUrl} rel="external noreferrer">{evidence.sourceUrl}</a> · beobachtet am {new Intl.DateTimeFormat('de-DE', { dateStyle: 'long', timeZone: 'Europe/Berlin' }).format(new Date(evidence.observedAt))}</p>
 			<blockquote>{evidence.passage}</blockquote>
+			{#if evidence.sourceSnapshotId}
+				<p class="hint">Privater Quellensnapshot: <code>{evidence.sourceSnapshotId}</code> · SHA-256 <code>{data.snapshots.find((snapshot) => snapshot.id === evidence.sourceSnapshotId)?.bodySha256 ?? 'nicht gefunden'}</code></p>
+			{:else}<p class="hint">Manuell erfasster Beleg ohne gespeicherten Quellensnapshot.</p>{/if}
 		{/each}
 		<p class="hint">Prüfe Aussage und Beleg auf der Originalseite. Die Passage bleibt intern; öffentlich erscheint ein Link mit Beobachtungsdatum.</p>
 	</section>

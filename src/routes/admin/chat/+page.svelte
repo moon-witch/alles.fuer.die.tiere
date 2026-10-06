@@ -6,7 +6,7 @@
 		<h1>Was möchtest du teilen?</h1>
 		<p>Ich mache daraus einen nachvollziehbaren Entwurf. Veröffentlicht wird erst nach deiner Vorschau und Bestätigung.</p>
 		{#if data.isSteward}
-			<nav aria-label="Technische Verwaltung"><a href="/admin/inhalte">Inhalte</a> · <a href="/admin/aktuelle-hilfe">Aktuelle Hilfe</a> · <a href="/admin/aufgaben">Aufgaben</a> · <a href="/admin/verlauf">Verlauf</a></nav>
+			<nav aria-label="Technische Verwaltung"><a href="/admin/inhalte">Inhalte</a> · <a href="/admin/quellen">Quellen</a> · <a href="/admin/aktuelle-hilfe">Aktuelle Hilfe</a> · <a href="/admin/aufgaben">Aufgaben</a> · <a href="/admin/verlauf">Verlauf</a></nav>
 		{/if}
 	</header>
 	<section class="status" aria-label="Status"><strong>Heute</strong><span>Der Inhaltschat bereitet nur private Entwürfe vor.</span></section>

@@ -17,7 +17,7 @@ export const load = async ({ locals, params, url }) => {
 	]);
 	const revertPreview = operation[0]?.type === 'action.set_primary' ? await getCurrentActionRevertPreview(operation[0].id) : null;
 	const claimRevertPreview = operation[0]?.type === 'claim.publish' ? await getClaimRevertPreview(operation[0].id) : null;
-	const claimId = operation[0]?.type === 'claim.publish' && operation[0].entityDiff && typeof operation[0].entityDiff === 'object' && 'claimId' in operation[0].entityDiff && typeof operation[0].entityDiff.claimId === 'string' && /^[0-9a-f-]{36}$/i.test(operation[0].entityDiff.claimId) ? operation[0].entityDiff.claimId : null;
+	const claimId = ['claim.publish', 'source.observe'].includes(operation[0]?.type ?? '') && operation[0]?.entityDiff && typeof operation[0].entityDiff === 'object' && 'claimId' in operation[0].entityDiff && typeof operation[0].entityDiff.claimId === 'string' && /^[0-9a-f-]{36}$/i.test(operation[0].entityDiff.claimId) ? operation[0].entityDiff.claimId : null;
 	return { event, operation: operation[0] ?? null, revision: revision[0] ?? null, claimId, revertPreview, claimRevertPreview, revertKey: randomUUID(), reverted: url.searchParams.get('reverted') === '1' };
 };
 
