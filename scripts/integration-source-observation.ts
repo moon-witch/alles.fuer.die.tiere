@@ -3,12 +3,14 @@ import { createHash } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { createId } from '../src/lib/domain/ids';
 import { getDatabase } from '../src/lib/server/db/client';
-import { activityEvents, attentionItems, claimEvidence, claims, operations, sourceRuns, sourceSnapshots, sources, users } from '../src/lib/server/db/schema';
+import { activityEvents, attentionItems, claimEvidence, claims, jobs, operations, sourceRuns, sourceSnapshots, sources, users } from '../src/lib/server/db/schema';
 import { createProjectDraft } from '../src/lib/server/operations/create-project-draft';
 import { observeSource } from '../src/lib/server/operations/observe-source';
 import { getSourceReview, listSourceRegistry } from '../src/lib/server/ingestion/source-review';
 import { publishClaim } from '../src/lib/server/operations/publish-claim';
 import { getPublishedProject } from '../src/lib/server/public/projects';
+import { queueSourceObservation } from '../src/lib/server/jobs/source-observation';
+import { processNextJob } from '../src/lib/server/jobs/process';
 
 if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required for this disposable-database integration check.');
 const database = getDatabase();
@@ -51,6 +53,29 @@ assert.ok((await listSourceRegistry()).some((item) => item.id === reviewSource.i
 assert.equal((await database.select().from(attentionItems).where(eq(attentionItems.operationId, observed.operationId)))[0].status, 'open');
 assert.equal(await getPublishedProject(slug), null, 'observation remains private');
 
+const queuedInput = { ...input, url: 'https://example.org/queued', statement: 'Ein weiterer belegter Meilenstein.', sourcePublishedAt: new Date('2026-10-01T12:00:00Z'), idempotencyKey: `source-${createId()}` };
+const queued = await queueSourceObservation(queuedInput);
+assert.equal(queued.created, true);
+assert.deepEqual(await queueSourceObservation(queuedInput), { ...queued, created: false });
+await assert.rejects(queueSourceObservation({ ...queuedInput, statement: 'Andere Aussage' }), /anders verwendet/);
+const processed = await processNextJob(`source-worker-${createId()}`, (proposal) => observeSource(proposal, dependencies));
+assert.equal(processed?.jobId, queued.jobId);
+assert.equal(processed?.status, 'source_observed');
+assert.equal((await database.select().from(jobs).where(eq(jobs.id, queued.jobId)))[0].status, 'succeeded');
+const [queuedOperation] = await database.select().from(operations).where(eq(operations.idempotencyKey, queuedInput.idempotencyKey));
+assert.equal(queuedOperation.status, 'applied');
+assert.ok((queuedOperation.entityDiff as { claimId: string }).claimId);
+
+const failedQueuedInput = { ...input, url: 'https://example.org/queued-limited', idempotencyKey: `source-${createId()}` };
+const failedQueued = await queueSourceObservation(failedQueuedInput);
+const failedProcessed = await processNextJob(`source-worker-${createId()}`, (proposal) => observeSource(proposal, { ...dependencies, capture: async () => ({ url: new URL(proposal.url), status: 429, headers: new Headers() }) }));
+assert.equal(failedProcessed?.jobId, failedQueued.jobId);
+assert.equal(failedProcessed?.status, 'failed');
+assert.equal((await database.select().from(jobs).where(eq(jobs.id, failedQueued.jobId)))[0].status, 'failed');
+const [failedQueuedOperation] = await database.select().from(operations).where(eq(operations.idempotencyKey, failedQueuedInput.idempotencyKey));
+assert.equal((await database.select().from(attentionItems).where(eq(attentionItems.operationId, failedQueuedOperation.id))).length, 1);
+assert.equal((await database.select().from(attentionItems).where(eq(attentionItems.entityId, failedQueued.jobId))).length, 0, 'source failure already has an attention item');
+
 const [claim] = await database.select().from(claims).where(eq(claims.id, observed.claimId));
 await publishClaim({ claimId: observed.claimId, expectedClaimRevision: claim.revision, expectedPublicationRevisionId: null, initiatingUserId: userId, idempotencyKey: `publish-${createId()}` });
 assert.equal((await getPublishedProject(slug))?.project.claims[0].evidence[0].url, 'https://example.org/report');
@@ -65,5 +90,5 @@ assert.equal(failedReview?.runs.length, 1);
 assert.equal(failedReview?.snapshots.length, 0);
 assert.equal(failedReview?.evidence.length, 0, 'a source detail must not show another source\'s evidence');
 
-console.log('Source snapshot provenance, private draft, source review, idempotency, publication link, and failure attention verified.');
+console.log('Synchronous and queued source capture, provenance, private drafts, idempotency, publication links, and failure attention verified.');
 process.exit(0);

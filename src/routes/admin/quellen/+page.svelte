@@ -11,6 +11,12 @@
 	<p>Erfasse eine öffentliche Quelle und ihre genaue Belegstelle. Die Originalantwort wird privat gesichert; daraus entsteht nur ein privater Faktenentwurf. Prüfe Aussage, Rechte und mögliche sensible Angaben selbst vor der Veröffentlichung.</p>
 	{#if !data.storageReady}<p class="warning" role="status">Die private S3-Speicherung ist noch nicht konfiguriert. Für neue Quellensnapshots werden S3-Endpunkt, Bucket und Zugangsdaten benötigt.</p>{/if}
 	{#if form?.error}<p class="error" role="alert">{form.error}</p>{/if}
+	{#if data.queued}
+		{#if data.queued.claimId}<p class="success" role="status">Der Quellenbeleg wurde gesichert und ein privater <a href={`/admin/inhalte/${data.queued.claimId}`}>Faktenentwurf</a> angelegt.</p>
+		{:else if data.queued.status === 'failed'}<p class="error" role="alert">Die Quellenerfassung ist fehlgeschlagen. Prüfe die <a href="/admin/aufgaben">offenen Aufgaben</a> und den technischen Verlauf.</p>
+		{:else if data.queued.status === 'succeeded'}<p class="error" role="alert">Die Quellenerfassung ist abgeschlossen, aber der Entwurf konnte hier nicht gefunden werden. Prüfe den <a href="/admin/verlauf">technischen Verlauf</a>.</p>
+		{:else}<p class="success" role="status">Die Quellenerfassung ist vorgemerkt. Der Worker verarbeitet sie im Hintergrund. <a href={`/admin/quellen?queued=${data.queued.jobId}`}>Status aktualisieren</a></p>{/if}
+	{/if}
 	{#if form?.storageCheck === 'ready'}<p class="success" role="status">Der Bucket „raw“ ist erreichbar. Der Test hat keine Datei geschrieben.</p>{/if}
 	{#if form?.storageCheck === 'missing'}<p class="error" role="alert">Der Bucket „raw“ wurde nicht gefunden. Lege ihn in SeaweedFS an.</p>{/if}
 	{#if form?.storageCheck === 'forbidden'}<p class="error" role="alert">Der S3-Zugriff wurde verweigert. Prüfe Gateway-Zugangsdaten und Bucket-Rechte; der Bucket könnte trotzdem existieren.</p>{/if}
@@ -35,10 +41,14 @@
 				<label>Genaue Belegstelle <textarea name="passage" rows="4" maxlength="4000" required></textarea></label>
 				<label>Rechte und Quellenhinweis <textarea name="rightsNote" rows="2" maxlength="1000" required placeholder="Zum Beispiel: öffentlicher Link; keine Medien übernehmen"></textarea></label>
 				<label>Sensibilität <select name="sensitivity"><option value="none">Keine erkennbare</option><option value="review">Vor Veröffentlichung besonders prüfen</option></select></label>
-				<button class="button" type="submit" disabled={!data.storageReady}>Quelle privat sichern und Entwurf anlegen</button>
+				<button class="button" type="submit" disabled={!data.storageReady}>{data.sourceJobsEnabled ? 'Quellenerfassung vormerken' : 'Quelle privat sichern und Entwurf anlegen'}</button>
 			</form>
 		</section>
 	{:else}<p>Lege unter <a href="/admin/inhalte">Inhalte</a> zuerst ein Projekt an.</p>{/if}
+	{#if data.sourceJobs.length}<section class="panel" aria-labelledby="jobs-title">
+		<h2 id="jobs-title">Vorgemerkte Quellenerfassungen</h2>
+		<ul>{#each data.sourceJobs as job}<li><a href={`/admin/quellen?queued=${job.id}`}>{job.name}</a> · {job.status === 'succeeded' ? 'abgeschlossen' : job.status === 'failed' ? 'fehlgeschlagen' : job.status === 'running' ? 'in Bearbeitung' : 'wartet'} · {formatDate(job.createdAt)}</li>{/each}</ul>
+	</section>{/if}
 	<section class="panel" aria-labelledby="registry-title">
 		<h2 id="registry-title">Quellenübersicht</h2>
 		{#if data.registry.length}<ul>{#each data.registry as source}<li>

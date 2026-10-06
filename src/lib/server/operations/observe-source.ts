@@ -41,7 +41,7 @@ const defaults: Dependencies = {
 	remove: deleteRawSnapshot
 };
 
-export const observeSource = async (input: SourceObservationInput, dependencies: Dependencies = defaults): Promise<{ operationId: string; claimId: string; snapshotId: string; reused: boolean }> => {
+export const normalizeSourceObservation = (input: SourceObservationInput) => {
 	const normalizedUrl = validPublicUrl(input.url)?.toString();
 	if (!normalizedUrl) throw new Error('Eine öffentliche HTTPS-Quelle ist erforderlich.');
 	if (!input.name.trim() || input.name.length > 160 || !input.owner.trim() || input.owner.length > 160) throw new Error('Quellenname und Herausgeber sind erforderlich.');
@@ -49,7 +49,12 @@ export const observeSource = async (input: SourceObservationInput, dependencies:
 	if (!input.statement.trim() || input.statement.length > 1000 || !input.passage.trim() || input.passage.length > 4000 || !input.rightsNote.trim() || input.rightsNote.length > 1000) throw new Error('Aussage, genaue Belegstelle und Rechtehinweis sind erforderlich.');
 	if (input.sourcePublishedAt && !Number.isFinite(input.sourcePublishedAt.getTime())) throw new Error('Das Quelldatum ist ungültig.');
 	if (!input.idempotencyKey || input.idempotencyKey.length > 128) throw new Error('Ungültige Anfragekennung.');
-	const normalized = { projectId: input.projectId, name: input.name.trim(), owner: input.owner.trim(), sourceType: input.sourceType, authority: input.authority, url: normalizedUrl, kind: input.kind, statement: input.statement.trim(), passage: input.passage.trim(), sourcePublishedAt: input.sourcePublishedAt?.toISOString() ?? null, rightsNote: input.rightsNote.trim(), sensitivity: input.sensitivity };
+	return { projectId: input.projectId, name: input.name.trim(), owner: input.owner.trim(), sourceType: input.sourceType, authority: input.authority, url: normalizedUrl, kind: input.kind, statement: input.statement.trim(), passage: input.passage.trim(), sourcePublishedAt: input.sourcePublishedAt?.toISOString() ?? null, rightsNote: input.rightsNote.trim(), sensitivity: input.sensitivity };
+};
+
+export const observeSource = async (input: SourceObservationInput, dependencies: Dependencies = defaults): Promise<{ operationId: string; claimId: string; snapshotId: string; reused: boolean }> => {
+	const normalized = normalizeSourceObservation(input);
+	const normalizedUrl = normalized.url;
 	const requestHash = createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
 	const database = getDatabase();
 	const started = await database.transaction(async (tx) => {

@@ -32,6 +32,8 @@ Create a separate private Coolify application from the same reviewed commit usin
 
 Apply migration `0004` with `npm run db:migrate` from the private operations resource before starting the worker. Once the worker runs reliably, set `PUBLICATION_VERIFY_JOBS_ENABLED=true` **on the web application** and redeploy the web application. New project and current-action publications, including restored revisions from reverts, then enqueue a verification job in the same database transaction. Keep this flag false until the worker is running; an absent worker otherwise leaves jobs pending. A terminal failure creates one private Needs Attention item. Do not run more than one worker replica on the launch server.
 
+To move manual source capture into the worker, also give the worker the same internal raw-bucket S3 settings as the web application and connect it to the SeaweedFS network. After redeploying the worker, set `SOURCE_OBSERVATION_JOBS_ENABLED=true` on the web application and redeploy it. Leave the flag unset until the worker can reach both PostgreSQL and SeaweedFS. The admin form otherwise keeps its synchronous behavior. The worker does not poll source pages on a schedule yet.
+
 ## Required application environment
 
 Set these as Coolify secrets, never in the repository:
