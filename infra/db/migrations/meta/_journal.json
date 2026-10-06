@@ -29,6 +29,13 @@
       "when": 1790882497242,
       "tag": "0003_zippy_tarantula",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791293087096,
+      "tag": "0004_optimal_inhumans",
+      "breakpoints": true
     }
   ]
 }
