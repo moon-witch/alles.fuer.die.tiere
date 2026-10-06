@@ -38,7 +38,7 @@ const networkErrorCode = (cause: unknown): unknown => {
 export const checkRawSnapshotBucket = async (): Promise<RawBucketCheck> => {
 	const { client, bucket } = storage();
 	try {
-		await client.send(new HeadBucketCommand({ Bucket: bucket }));
+		await client.send(new HeadBucketCommand({ Bucket: bucket }), { abortSignal: AbortSignal.timeout(10_000) });
 		return 'ready';
 	} catch (cause) {
 		const status = cause && typeof cause === 'object' && '$metadata' in cause ? (cause as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode : undefined;
@@ -55,11 +55,11 @@ export const putRawSnapshot = async (body: Uint8Array, observedAt: Date): Promis
 	const { client, bucket } = storage();
 	const bodySha256 = createHash('sha256').update(body).digest('hex');
 	const objectKey = `${observedAt.getUTCFullYear()}/${String(observedAt.getUTCMonth() + 1).padStart(2, '0')}/${createId()}.gz`;
-	await client.send(new PutObjectCommand({ Bucket: bucket, Key: objectKey, Body: gzipSync(body), ContentType: 'application/gzip', Metadata: { 'body-sha256': bodySha256 } }));
+	await client.send(new PutObjectCommand({ Bucket: bucket, Key: objectKey, Body: gzipSync(body), ContentType: 'application/gzip', Metadata: { 'body-sha256': bodySha256 } }), { abortSignal: AbortSignal.timeout(30_000) });
 	return { objectKey, bodySha256 };
 };
 
 export const deleteRawSnapshot = async (objectKey: string) => {
 	const { client, bucket } = storage();
-	await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: objectKey }));
+	await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: objectKey }), { abortSignal: AbortSignal.timeout(30_000) });
 };

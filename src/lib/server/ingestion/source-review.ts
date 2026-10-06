@@ -16,7 +16,7 @@ export const getSourceReview = async (sourceId: string) => {
 	const [source] = await database.select().from(sources).where(eq(sources.id, sourceId)).limit(1);
 	if (!source) return null;
 	const [runs, evidence] = await Promise.all([
-		database.select().from(sourceRuns).where(eq(sourceRuns.sourceId, sourceId)).orderBy(desc(sourceRuns.fetchedAt)).limit(30),
+		database.select().from(sourceRuns).where(eq(sourceRuns.sourceId, sourceId)).orderBy(desc(sourceRuns.fetchedAt)).limit(source.adapterKey === 'wilderness-ma-counter' ? 150 : 30),
 		database.select({
 			claimId: claims.id,
 			statement: claims.statement,
@@ -38,5 +38,10 @@ export const getSourceReview = async (sourceId: string) => {
 	const snapshots = runIds.length
 		? await database.select({ id: sourceSnapshots.id, sourceRunId: sourceSnapshots.sourceRunId, bodySha256: sourceSnapshots.bodySha256, normalizedExtract: sourceSnapshots.normalizedExtract, normalizedSha256: sourceSnapshots.normalizedSha256, objectKey: sourceSnapshots.objectKey, retentionClass: sourceSnapshots.retentionClass }).from(sourceSnapshots).where(inArray(sourceSnapshots.sourceRunId, runIds))
 		: [];
-	return { source, runs, snapshots, evidence };
+	const runById = new Map(runs.map((run) => [run.id, run]));
+	const maForestLatest = snapshots
+		.map((snapshot) => ({ snapshot, extract: snapshot.normalizedExtract as Record<string, unknown>, run: runById.get(snapshot.sourceRunId) }))
+		.filter(({ extract, run }) => run && extract?.type === 'ma-forest-counter' && typeof extract.protectedAreaM2 === 'number' && typeof extract.donations === 'number' && typeof extract.goalM2 === 'number' && typeof extract.donationUrl === 'string')
+		.sort((left, right) => right.run!.fetchedAt.getTime() - left.run!.fetchedAt.getTime())[0];
+	return { source, runs, snapshots, evidence, maForestLatest: maForestLatest ? { observedAt: maForestLatest.run!.fetchedAt, protectedAreaM2: maForestLatest.extract.protectedAreaM2 as number, donations: maForestLatest.extract.donations as number, goalM2: maForestLatest.extract.goalM2 as number, donationUrl: maForestLatest.extract.donationUrl as string, snapshotId: maForestLatest.snapshot.id } : null };
 };

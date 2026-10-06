@@ -15,11 +15,13 @@ export const recordFailedJob = async (input: { jobId: string; errorCode: string 
 		const [sourceFailure] = sourceKey ? await tx.select({ id: attentionItems.id }).from(attentionItems)
 			.innerJoin(operations, eq(attentionItems.operationId, operations.id))
 			.where(and(eq(operations.idempotencyKey, sourceKey), eq(operations.status, 'failed'))).limit(1) : [];
+		const [pollFailure] = job.kind === 'source.poll.ma_forest' ? await tx.select({ id: operations.id }).from(operations)
+			.where(and(eq(operations.idempotencyKey, `ma-forest-poll:${input.jobId}`), eq(operations.status, 'failed'))).limit(1) : [];
 		const operationId = createId();
 		const correlationId = createId();
 		const inserted = await tx.insert(operations).values({ id: operationId, type: 'job.failure_recorded', status: 'applied', origin: 'worker', idempotencyKey, requestHash, input: { jobId: input.jobId, kind: job.kind, errorCode: input.errorCode }, correlationId }).onConflictDoNothing().returning({ id: operations.id });
 		if (!inserted.length) return false;
-		if (!sourceFailure) await tx.insert(attentionItems).values({ id: createId(), kind: 'job_failed', severity: 'warning', summary: 'Eine Hintergrundaufgabe ist fehlgeschlagen. Bitte den technischen Verlauf prüfen.', entityType: 'job', entityId: input.jobId, operationId });
+		if (!sourceFailure && !pollFailure) await tx.insert(attentionItems).values({ id: createId(), kind: 'job_failed', severity: 'warning', summary: 'Eine Hintergrundaufgabe ist fehlgeschlagen. Bitte den technischen Verlauf prüfen.', entityType: 'job', entityId: input.jobId, operationId });
 		await tx.insert(activityEvents).values({ id: createId(), operationId, eventType: 'job.failed', origin: 'worker', severity: 'warning', summary: 'Hintergrundaufgabe fehlgeschlagen.', correlationId, payload: { jobId: input.jobId, kind: job.kind, errorCode: input.errorCode } });
 		return true;
 	});

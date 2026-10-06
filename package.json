@@ -17,6 +17,7 @@
     "test:project-db": "tsx scripts/integration-project-publication.ts",
     "test:source-db": "tsx scripts/integration-source-observation.ts",
     "test:jobs-db": "tsx scripts/integration-job-queue.ts",
+    "test:ma-forest-db": "tsx scripts/integration-ma-forest-poll.ts",
     "admin:bootstrap": "tsx scripts/bootstrap-admin.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

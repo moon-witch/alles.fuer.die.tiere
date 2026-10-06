@@ -17,7 +17,7 @@ for (const [address, prefix] of [
 	['2001:db8::', 32], ['2002::', 16], ['fc00::', 7], ['fe80::', 10]
 ] as const) blocked.addSubnet(address, prefix, 'ipv6');
 
-export type FetchPolicy = { maxBodyBytes: number; timeoutMs: number; allowedContentTypes: readonly string[] };
+export type FetchPolicy = { maxBodyBytes: number; timeoutMs: number; allowedContentTypes: readonly string[]; ifNoneMatch?: string; ifModifiedSince?: string };
 export type CapturedResponse = { url: URL; status: number; headers: Headers; body?: Uint8Array };
 
 export const isBlockedAddress = (address: string): boolean => {
@@ -47,10 +47,14 @@ const toHeaders = (source: IncomingHttpHeaders) => {
 
 const requestOnce = (url: URL, address: string, policy: FetchPolicy): Promise<CapturedResponse> => new Promise((resolve, reject) => {
 	const family = isIP(address);
+	const conditional = {
+		...(policy.ifNoneMatch && policy.ifNoneMatch.length <= 200 && !/[\r\n]/.test(policy.ifNoneMatch) ? { 'if-none-match': policy.ifNoneMatch } : {}),
+		...(policy.ifModifiedSince && policy.ifModifiedSince.length <= 100 && !/[\r\n]/.test(policy.ifModifiedSince) ? { 'if-modified-since': policy.ifModifiedSince } : {})
+	};
 	const req = request(url, {
 		method: 'GET', agent: false, family, servername: url.hostname,
 		lookup: (_hostname, _options, callback) => callback(null, address, family),
-		headers: { accept: 'text/html,application/xhtml+xml,application/json;q=0.9', 'accept-encoding': 'identity', 'user-agent': 'AllesFuerDieTiereSourceBot/0.1 (+https://allesfuerdietiere.earth)' }
+		headers: { accept: 'text/html,application/xhtml+xml,application/json;q=0.9', 'accept-encoding': 'identity', 'user-agent': 'AllesFuerDieTiereSourceBot/0.1 (+https://allesfuerdietiere.earth)', ...conditional }
 	}, (response) => {
 		const status = response.statusCode ?? 0;
 		const headers = toHeaders(response.headers);
@@ -86,7 +90,7 @@ export const capturePublicSource = async (rawUrl: string, policy: FetchPolicy): 
 	let url = new URL(rawUrl);
 	for (let redirects = 0; redirects <= maxRedirects; redirects += 1) {
 		const address = await resolvePublicAddress(url, policy.timeoutMs);
-		const response = await requestOnce(url, address, policy);
+		const response = await requestOnce(url, address, redirects === 0 ? policy : { ...policy, ifNoneMatch: undefined, ifModifiedSince: undefined });
 		if ([301, 302, 303, 307, 308].includes(response.status)) {
 			const location = response.headers.get('location');
 			if (!location || redirects === maxRedirects) throw new Error('Source redirect cannot be followed safely.');

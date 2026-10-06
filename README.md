@@ -44,6 +44,8 @@ At `/admin/quellen`, the steward can capture an official public page into a priv
 
 The private `Dockerfile.worker` image verifies newly published revisions and can capture manual sources through the PostgreSQL job table. Apply migration `0004` and deploy it with `DATABASE_URL`. Set `PUBLICATION_VERIFY_JOBS_ENABLED=true` on the web resource to enqueue new publication checks. To move source capture off the web request, also give the worker raw-bucket S3 access, then set `SOURCE_OBSERVATION_JOBS_ENABLED=true` on the web resource. Both flags are opt-in; the worker never publishes content. See [the worker runbook](docs/operations/job-queue.md).
 
+The worker also has a disabled-by-default, observe-only [MA-Forest poll](docs/operations/ma-forest-poll.md) using the official campaign statistics response. It stores private evidence and review items every six hours when explicitly enabled on the worker; it does not publish a counter or change the donation destination.
+
 The steward can inspect recent Activity at `/admin/verlauf`, including the operation and publication revision behind a public change. An eligible current-action change or published project claim can be reversed from its Activity detail page after reviewing the preview. A newer publication blocks the reversal and creates an attention item in `/admin/aufgaben`; a successful reversal creates a new operation and leaves the earlier records intact. Marking an attention item resolved requires a short note and never changes the public site. While the temporary reveal gate is enabled, `robots.txt` disallows indexing and the sitemap exposes no project routes.
 
 ## Verification
